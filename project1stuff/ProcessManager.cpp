@@ -201,35 +201,36 @@ void ProcessManager::ProcessJobSRT()
     int currentTime = 0;
     int i = 0;
 
-    jobQueue.push(jobs[0]);
+   // jobQueue.push(jobs[0]);
 
-    do
+    for (int j = 0; j < numOfJobs; j++)
+    {
+        jobQueue.push(jobs[j]);
+    }
+
+    while (jobQueue.size() != 0)
     {
         job currentJob = jobQueue.front();
-
-        //calculate turnaround time
-        turnaroundTime = (currentTime + currentJob.cpuCycle - currentJob.jobArrivalTime);
-
-        //compute computation completion time
-        currentTime += currentJob.cpuCycle;
         
-        //compute the amount of time the current job waited in queue
-        waitingTime = turnaroundTime - currentJob.cpuCycle;
+        jobQueue.pop();
 
-        //increment averages
-        avgTurnaroundTime += turnaroundTime;
-        avgWaitingTime += waitingTime;
+        currentJob.cpuCycle -= 1;
 
-        if (currentJob.cpuCycle > jobQueue.front().cpuCycle)
+        if (currentJob.cpuCycle == 0)
         {
-            jobQueue.push(jobs[i]);
+            continue;
         }
-        
-        i++;
 
-    } while (jobQueue.size() != 0);
-    
-    
+        else if (currentJob.cpuCycle > jobQueue.front().cpuCycle)
+        {
+            jobQueue.push(currentJob);
+        }
+
+        currentTime++;
+         
+    }
+        
+
     //compute averages 
     avgTurnaroundTime /= numOfJobs;
     avgWaitingTime /= numOfJobs;
