@@ -123,14 +123,14 @@ void ProcessManager::ProcessJobSJN()
     std::vector<std::pair<int, int>> sortedJobs;
 
     //create iterator for the jobs map
-    std::map<int, job> :: iterator it2;
+    std::map<int, job> :: iterator it;
 
     //copy and paste jobs from the jobs map to the container
-    it2 = jobs.begin();
+    it = jobs.begin();
     
-    for (it2; it2 != jobs.end(); it2++)
+    for (it; it != jobs.end(); it++)
     {
-        sortedJobs.push_back(std::make_pair(it2->first, it2->second.cpuCycle));
+        sortedJobs.push_back(std::make_pair(it->first, it->second.cpuCycle));
     }
 
     //sort jobs by cpu cycle time
@@ -192,6 +192,56 @@ void ProcessManager::ProcessJobSJN()
 
     //reset all variables
     resetVars();
+}
+
+void ProcessManager::ProcessJobSRT()
+{
+    std::queue<job> jobQueue;
+
+    int currentTime = 0;
+    int i = 0;
+
+    jobQueue.push(jobs[0]);
+
+    do
+    {
+        job currentJob = jobQueue.front();
+
+        //calculate turnaround time
+        turnaroundTime = (currentTime + currentJob.cpuCycle - currentJob.jobArrivalTime);
+
+        //compute computation completion time
+        currentTime += currentJob.cpuCycle;
+        
+        //compute the amount of time the current job waited in queue
+        waitingTime = turnaroundTime - currentJob.cpuCycle;
+
+        //increment averages
+        avgTurnaroundTime += turnaroundTime;
+        avgWaitingTime += waitingTime;
+
+        if (currentJob.cpuCycle > jobQueue.front().cpuCycle)
+        {
+            jobQueue.push(jobs[i]);
+        }
+        
+        i++;
+
+    } while (jobQueue.size() != 0);
+    
+    
+    //compute averages 
+    avgTurnaroundTime /= numOfJobs;
+    avgWaitingTime /= numOfJobs;
+    
+    //output runtime stats
+    std::cout << "\n\nRuntime Statistics: ";
+    std::cout << "\n\n\tAverage Turnaround time: " << avgTurnaroundTime;
+    std::cout << "\n\n\tAverage Waiting Time: " << avgWaitingTime;
+
+    //reset all variables
+    resetVars();
+
 }
 
 void ProcessManager::DEBUGPrintJobs()

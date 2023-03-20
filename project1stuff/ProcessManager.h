@@ -29,7 +29,8 @@ private:
 public:
     float turnaroundTime = 0, waitingTime = 0,
     avgTurnaroundTime = 0, avgWaitingTime = 0, 
-    completionTime = 0;
+    completionTime = 0, contextSwitchTime = 0.1, 
+    timeQuantum = 4;
 
     ProcessManager(std::string);
     ~ProcessManager();
