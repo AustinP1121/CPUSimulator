@@ -12,25 +12,38 @@
 class ProcessManager
 {
 private:
+    std::ifstream jobsFile; 
 
+    int numOfJobs;
+
+public:
     struct job
     {
         int jobID = 0;
         int jobArrivalTime = 0;
         int cpuCycle = 0;
+        int cpuCycleRemainingTime = cpuCycle;
+
+        int wt = 0;
+        int tt = 0;
+        int ct = 0;
     };
 
+    struct sortByRemainingTime {
+    bool operator()(const job& a, const job& b) const {
+        return a.cpuCycleRemainingTime > b.cpuCycleRemainingTime;
+    }
+    };
+    
     std::map<int, job> jobs; 
 
-    std::ifstream jobsFile; 
 
-    float numOfJobs;
-
-public:
     float turnaroundTime = 0, waitingTime = 0,
     avgTurnaroundTime = 0, avgWaitingTime = 0, 
     completionTime = 0, contextSwitchTime = 0.1, 
     timeQuantum = 4;
+
+    //std::queue<job> jobQueue;
 
     ProcessManager(std::string);
     ~ProcessManager();
@@ -40,6 +53,8 @@ public:
     void ProcessFile();
     static bool sortByVal( const std::pair<int, int> &a,
                     const std::pair<int, int> &b);
+    static bool sortByCycleVal(const job &a, const job &b);
+    static bool sortByArrivalTime(job a, job b);
     void resetVars();
 
     void ProcessJobFCFS();
