@@ -8,6 +8,6 @@ int main()
     
     test.ProcessFile();
 
-    test.ProcessJobSRT();
+    test.ProcessJobRR();
     
 }
