@@ -3,6 +3,7 @@
 ProcessManager::ProcessManager(std::string fileName)
 {
     jobsFile.open(fileName, std::ios::in);
+    ProcessFile();
 }
 
 ProcessManager::~ProcessManager()
@@ -378,18 +379,10 @@ void ProcessManager::ProcessJobRR()
                 currentJob.cpuCycleRemainingTime = 0;
             }
          }
-        
+
          if (currentJob.cpuCycleRemainingTime == 0)
          {
-              if (currentJob.jobID == 1)
-              {
-                currentTime--;
-              }
-              else
-              {
-                currentTime++;
-              }
-    
+              currentTime += timeQuantum;
               currentJob.tt = currentTime - currentJob.jobArrivalTime;
               currentJob.wt = currentJob.tt - currentJob.cpuCycle;
     
@@ -403,7 +396,7 @@ void ProcessManager::ProcessJobRR()
          else
          {
               jobQueue.push(currentJob);
-              currentTime++;
+              currentTime += timeQuantum;
          }
    }
 
