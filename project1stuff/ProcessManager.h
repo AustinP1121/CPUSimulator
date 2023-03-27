@@ -37,13 +37,11 @@ public:
     
     std::map<int, job> jobs; 
 
-
     float turnaroundTime = 0, waitingTime = 0,
     avgTurnaroundTime = 0, avgWaitingTime = 0, 
-    completionTime = 0, contextSwitchTime = 0.1, 
-    timeQuantum = 4;
+    completionTime = 0, contextSwitchTime = 0.1;
 
-    //std::queue<job> jobQueue;
+    int timeQuantum = 0;
 
     ProcessManager(std::string);
     ~ProcessManager();
@@ -54,7 +52,6 @@ public:
     static bool sortByVal( const std::pair<int, int> &a,
                     const std::pair<int, int> &b);
     static bool sortByCycleVal(const job &a, const job &b);
-    static bool sortByArrivalTime(job a, job b);
     void resetVars();
 
     void ProcessJobFCFS();

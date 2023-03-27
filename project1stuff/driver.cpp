@@ -12,19 +12,19 @@ int main()
 
     while (!exit)
     {   
-        cout << setw(40) << "CPU Scheduling Algorithms" << endl;
+        cout << setw(40) << "\nCPU Scheduling Algorithms" << endl;
         cout << "\t1. FCFS" << endl;
         cout << "\t2. SJF" << endl;
-        cout << "\t3. SRTF" << endl;
+        cout << "\t3. SRT" << endl;
         cout << "\t4. RR" << endl;
         cout << "\t5. Exit" << endl;
         cout << "\n\tEnter a number: ";
-        cin >> exit;
+        cin >> choice;
 
         switch (choice)
         {
         case 1:
-            cout << "\tDo you want to change the context swit" << endl;
+            cout << "" << endl;
             test.ProcessJobFCFS();
             break;
         case 2:

@@ -88,11 +88,6 @@ bool ProcessManager::sortByCycleVal(const job &a, const job &b)
     return a.cpuCycleRemainingTime < b.cpuCycleRemainingTime;
 }
 
-bool ProcessManager::sortByArrivalTime(job a, job b)
-{
-    return a.jobArrivalTime < b.jobArrivalTime;
-}
-
 void ProcessManager::resetVars()
 {
     turnaroundTime = 0;
@@ -107,15 +102,28 @@ void ProcessManager::ProcessJobFCFS()
 
     for (int i = 0; i < numOfJobs; i++)
     {   
-        turnaroundTime = (currentTime + jobs[i].cpuCycle - jobs[i].jobArrivalTime);
+        if (currentTime < jobs[i].jobArrivalTime)
+        {
+            currentTime = jobs[i].jobArrivalTime;
+            turnaroundTime = currentTime + jobs[i].cpuCycle;
+            currentTime += jobs[i].cpuCycle;
+            
+            waitingTime = currentTime - jobs[i].jobArrivalTime - jobs[i].cpuCycle;
 
-        currentTime += jobs[i].cpuCycle;
+            avgTurnaroundTime += turnaroundTime;
+            avgWaitingTime += waitingTime;            
+        }
+        else
+        {
+            turnaroundTime = currentTime + jobs[i].cpuCycle - jobs[i].jobArrivalTime;
+            currentTime += jobs[i].cpuCycle;
+            
+            waitingTime = turnaroundTime - jobs[i].cpuCycle;
+
+            avgTurnaroundTime += turnaroundTime;
+            avgWaitingTime += waitingTime;
+        }
         
-        waitingTime = turnaroundTime - jobs[i].cpuCycle;
-
-        avgTurnaroundTime += turnaroundTime;
-        avgWaitingTime += waitingTime;
-
         std::cout << "\n\nJob " << jobs[i].jobID << std::endl;
         std::cout << "\nTurnaround Time: " << turnaroundTime;
         std::cout << "\nWaiting Time: " << waitingTime;
@@ -166,30 +174,34 @@ void ProcessManager::ProcessJobSJN()
     //current time step
     int currentTime = 0;
     
-
     for (int i = 0; i < numOfJobs; i++)
     {   
-        //current job being processed
-        int currentJob;
+        int currentJob = sortedJobs[i].first;
 
-        //get the job from the container of sorted jobs
-        currentJob = sortedJobs[i].first;
+        if (currentTime < jobs[i].jobArrivalTime)
+        {
+            currentTime = jobs[currentJob].jobArrivalTime;
+            turnaroundTime = currentTime + jobs[currentJob].cpuCycle;
+            currentTime += jobs[currentJob].cpuCycle;
+            
+            waitingTime = currentTime - jobs[currentJob].jobArrivalTime - jobs[currentJob].cpuCycle;
 
-        //calculate turnaround time
-        turnaroundTime = (currentTime + jobs[currentJob].cpuCycle - jobs[currentJob].jobArrivalTime);
+            avgTurnaroundTime += turnaroundTime;
+            avgWaitingTime += waitingTime;            
+        }
+        else
+        {
+            turnaroundTime = currentTime + jobs[currentJob].cpuCycle - jobs[currentJob].jobArrivalTime;
+            currentTime += jobs[currentJob].cpuCycle;
+            
+            waitingTime = turnaroundTime - jobs[currentJob].cpuCycle;
 
-        //compute computation completion time
-        currentTime += jobs[currentJob].cpuCycle;
-        
-        //compute the amount of time the current job waited in queue
-        waitingTime = turnaroundTime - jobs[currentJob].cpuCycle;
-
-        //increment averages
-        avgTurnaroundTime += turnaroundTime;
-        avgWaitingTime += waitingTime;
+            avgTurnaroundTime += turnaroundTime;
+            avgWaitingTime += waitingTime;
+        }
 
         //output job stats
-        std::cout << "\n\nJob " << jobs[i].jobID << std::endl;
+        std::cout << "\n\nJob " << jobs[currentJob].jobID << std::endl;
         std::cout << "\nTurnaround Time: " << turnaroundTime;
         std::cout << "\nWaiting Time: " << waitingTime;
         std::cout << "\nCurrent Time: " << currentTime;
@@ -213,9 +225,8 @@ void ProcessManager::ProcessJobSJN()
 
 void ProcessManager::ProcessJobSRT()
 {
-    int completed = 0;
     int currentTime = 0;
-
+    
     resetVars();
 
     std::vector<job> sortedJobs;
@@ -225,23 +236,30 @@ void ProcessManager::ProcessJobSRT()
         sortedJobs.push_back(jobs[i]);
     }
 
-    std::stable_sort(sortedJobs.begin()+2, sortedJobs.end(), sortByCycleVal);
+    std::stable_sort(sortedJobs.begin() + 2, sortedJobs.end(), sortByCycleVal);
 
     while (!sortedJobs.empty())
     {
-        job currentJob = sortedJobs.front(); 
+        //if a context switch occurs, increment the current time by the context switch time
+        
+        if (currentTime < sortedJobs.front().jobArrivalTime && !sortedJobs.empty())
+        {
+            currentTime = sortedJobs.front().jobArrivalTime;
+        }
+
+        job currentJob = sortedJobs.front();
         sortedJobs.erase(sortedJobs.begin());
 
         if (currentTime == 0)
         {
             currentTime++;
         }
-        
+
         if (currentJob.cpuCycleRemainingTime > 0)
         {
             currentJob.cpuCycleRemainingTime--;
         }
-        
+
         if (currentJob.cpuCycleRemainingTime == 0)
         {
             if (currentJob.jobID == 1)
@@ -263,15 +281,32 @@ void ProcessManager::ProcessJobSRT()
             std::cout << "Waiting time: " << currentJob.wt << std::endl;
             avgWaitingTime += currentJob.wt;
         }
-        
+        else if (sortedJobs.empty())
+        {
+            currentTime += currentJob.cpuCycleRemainingTime;
+            currentJob.cpuCycleRemainingTime = 0;
+
+            //currentJob.tt = currentTime - currentJob.cpuCycle - currentJob.jobArrivalTime;
+
+            currentJob.tt = currentTime - currentJob.jobArrivalTime + timeQuantum;
+            currentJob.wt = currentJob.tt - currentJob.cpuCycle;
+
+            //compute the amount of time the current job waited in queue
+            std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
+            std::cout << "Turnaround time: " << currentJob.tt << std::endl;
+            avgTurnaroundTime += currentJob.tt;
+            std::cout << "Waiting time: " << currentJob.wt << std::endl;
+            avgWaitingTime += currentJob.wt;
+        }
         else
         {
-            if (currentJob.cpuCycleRemainingTime > sortedJobs.front().cpuCycleRemainingTime)
+            if (currentJob.cpuCycleRemainingTime > sortedJobs.front().cpuCycleRemainingTime && !sortedJobs.empty())
             {
+                currentTime += contextSwitchTime;
                 sortedJobs.push_back(currentJob);
                 currentTime++;
             }
-            else if (currentJob.cpuCycleRemainingTime == sortedJobs.front().cpuCycleRemainingTime)
+            else if (currentJob.cpuCycleRemainingTime == sortedJobs.front().cpuCycleRemainingTime && !sortedJobs.empty())
             {
                 if (currentJob.jobArrivalTime < sortedJobs.front().jobArrivalTime)
                 {
@@ -290,10 +325,10 @@ void ProcessManager::ProcessJobSRT()
                         {
                             currentTime++;
                         }
-                        
+
                         currentJob.tt = currentTime - currentJob.jobArrivalTime;
                         currentJob.wt = currentJob.tt - currentJob.cpuCycle;
-      
+
                         //compute the amount of time the current job waited in queue
                         std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
                         std::cout << "Turnaround time: " << currentJob.tt << std::endl;
@@ -302,9 +337,9 @@ void ProcessManager::ProcessJobSRT()
                         avgWaitingTime += currentJob.wt;
                     }
                 }
-                
+
             }
-            else if(currentJob.cpuCycleRemainingTime < sortedJobs.front().cpuCycleRemainingTime)
+            else if (currentJob.cpuCycleRemainingTime < sortedJobs.front().cpuCycleRemainingTime && !sortedJobs.empty())
             {
                 while (currentJob.cpuCycleRemainingTime < sortedJobs.front().cpuCycleRemainingTime && currentJob.cpuCycleRemainingTime != 0)
                 {
@@ -312,32 +347,34 @@ void ProcessManager::ProcessJobSRT()
                     ++currentTime;
                 }
                 if (currentJob.cpuCycleRemainingTime == 0)
-                { 
+                {
                     if (currentJob.jobID == 1)
                     {
                         currentTime--;
                     }
-                    
+
                     currentTime++;
                     currentJob.tt = currentTime - currentJob.jobArrivalTime;
                     currentJob.wt = currentJob.tt - currentJob.cpuCycle;
-  
+
                     //compute the amount of time the current job waited in queue
                     std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
                     std::cout << "Turnaround time: " << currentJob.tt << std::endl;
                     avgTurnaroundTime += currentJob.tt;
                     std::cout << "Waiting time: " << currentJob.wt << std::endl;
                     avgWaitingTime += currentJob.wt;
-                    
+
                 }
                 else
                 {
+					currentTime += contextSwitchTime;
                     sortedJobs.push_back(currentJob);
                     currentTime++;
                 }
             }
             else
             {
+                currentTime += contextSwitchTime;
                 sortedJobs.push_back(currentJob);
                 currentTime++;
             }
@@ -354,10 +391,9 @@ void ProcessManager::ProcessJobSRT()
 void ProcessManager::ProcessJobRR()
 {
    std::queue<job> jobQueue;
-   std::vector<job> jobList;
 
    int currentTime = 0;
-
+   
    for (int i = 0; i < numOfJobs; i++)
    {
        jobQueue.push(jobs[i]);
@@ -365,42 +401,139 @@ void ProcessManager::ProcessJobRR()
 
    while (!jobQueue.empty())
    {
-         job currentJob = jobQueue.front();
-         jobQueue.pop();
-    
-         if (currentJob.cpuCycleRemainingTime > 0)
-         {
+        job currentJob = jobQueue.front();
+        jobQueue.pop();
+
+        std::cout << "Job " << currentJob.jobID << " is running at time " << currentTime << std::endl;
+
+        if (currentJob.cpuCycleRemainingTime > 0)
+        {
             if (currentJob.cpuCycleRemainingTime > timeQuantum)
             {
-                currentJob.cpuCycleRemainingTime -= timeQuantum;                
+                currentJob.cpuCycleRemainingTime -= timeQuantum;
+
+                if (currentJob.cpuCycleRemainingTime == 0)
+                {
+                    currentTime += timeQuantum;
+                    currentJob.cpuCycleRemainingTime = 0;
+                    //currentJob.tt = currentTime - currentJob.cpuCycle - currentJob.jobArrivalTime;
+
+                    currentJob.tt = currentTime - currentJob.jobArrivalTime;
+                    currentJob.wt = currentJob.tt - currentJob.cpuCycle;
+
+                    //compute the amount of time the current job waited in queue
+                    std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
+                    std::cout << "Turnaround time: " << currentJob.tt << std::endl;
+                    avgTurnaroundTime += currentJob.tt;
+                    std::cout << "Waiting time: " << currentJob.wt << std::endl;
+                    avgWaitingTime += currentJob.wt;                   
+                    }
+
+                if (jobQueue.empty())
+                {
+                    currentTime += currentJob.cpuCycleRemainingTime + timeQuantum;
+                    currentJob.cpuCycleRemainingTime = 0;
+                    //currentJob.tt = currentTime - currentJob.cpuCycle - currentJob.jobArrivalTime;
+
+                    currentJob.tt = currentTime - currentJob.jobArrivalTime;
+                    currentJob.wt = currentJob.tt - currentJob.cpuCycle;
+
+                    //compute the amount of time the current job waited in queue
+                    std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
+                    std::cout << "Turnaround time: " << currentJob.tt << std::endl;
+                    avgTurnaroundTime += currentJob.tt;
+                    std::cout << "Waiting time: " << currentJob.wt << std::endl;
+                    avgWaitingTime += currentJob.wt;  
+                }
+                
+
+                else
+                {
+                    currentTime += timeQuantum;
+                    jobQueue.push(currentJob);   
+
+                    std::cout << "Job " << currentJob.jobID << " is preempted at time " << currentTime << "\n\n";
+                }
             }
-            else
+
+
+
+            else if (currentJob.cpuCycleRemainingTime < timeQuantum)
             {
+                currentTime += currentJob.cpuCycleRemainingTime;
                 currentJob.cpuCycleRemainingTime = 0;
+
+                //currentJob.tt = currentTime - currentJob.cpuCycle - currentJob.jobArrivalTime;
+
+                currentJob.tt = currentTime - currentJob.jobArrivalTime + timeQuantum;
+                currentJob.wt = currentJob.tt - currentJob.cpuCycle;
+
+                //compute the amount of time the current job waited in queue
+                std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
+                std::cout << "Turnaround time: " << currentJob.tt << std::endl;
+                avgTurnaroundTime += currentJob.tt;
+                std::cout << "Waiting time: " << currentJob.wt << std::endl;
+                avgWaitingTime += currentJob.wt;
             }
-         }
 
-         if (currentJob.cpuCycleRemainingTime == 0)
-         {
-              currentTime += timeQuantum;
-              currentJob.tt = currentTime - currentJob.jobArrivalTime;
-              currentJob.wt = currentJob.tt - currentJob.cpuCycle;
-    
-              //compute the amount of time the current job waited in queue
-              std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
-              std::cout << "Turnaround time: " << currentJob.tt << std::endl;
-              avgTurnaroundTime += currentJob.tt;
-              std::cout << "Waiting time: " << currentJob.wt << std::endl;
-              avgWaitingTime += currentJob.wt;
-         }
-         else
-         {
-              jobQueue.push(currentJob);
-              currentTime += timeQuantum;
-         }
+            else if (currentJob.cpuCycleRemainingTime == timeQuantum)
+            {
+                if (currentJob.jobArrivalTime <= timeQuantum)
+                {
+                    currentTime += timeQuantum;
+                    currentJob.tt = currentTime - currentJob.cpuCycle - currentJob.jobArrivalTime;
+                    currentJob.cpuCycleRemainingTime = 0;
+
+                    //currentJob.tt = currentTime - currentJob.jobArrivalTime;
+                    currentJob.wt = currentJob.tt - currentJob.cpuCycle;
+
+                    //compute the amount of time the current job waited in queue
+                    std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
+                    std::cout << "Turnaround time: " << currentJob.tt << std::endl;
+                    avgTurnaroundTime += currentJob.tt;
+                    std::cout << "Waiting time: " << currentJob.wt << std::endl;
+                    avgWaitingTime += currentJob.wt;
+                }
+                else
+                {
+                    currentTime += timeQuantum;
+                    currentJob.cpuCycleRemainingTime = 0;
+
+                    currentJob.tt = currentTime - currentJob.jobArrivalTime + timeQuantum;
+                    currentJob.wt = currentJob.tt - currentJob.cpuCycle;
+
+                    //compute the amount of time the current job waited in queue
+                    std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
+                    std::cout << "Turnaround time: " << currentJob.tt << std::endl;
+                    avgTurnaroundTime += currentJob.tt;
+                    std::cout << "Waiting time: " << currentJob.wt << std::endl;
+                    avgWaitingTime += currentJob.wt;
+            }
+        }
+
+        else
+            {
+            currentTime += timeQuantum;
+            
+            currentJob.tt = currentTime - currentJob.jobArrivalTime;
+
+            currentJob.wt = currentJob.tt - currentJob.cpuCycle;
+
+            //compute the amount of time the current job waited in queue
+            std::cout << "Job " << currentJob.jobID << " completed at time " << currentTime << std::endl;
+            std::cout << "Turnaround time: " << currentJob.tt << std::endl;
+            avgTurnaroundTime += currentJob.tt;
+            std::cout << "Waiting time: " << currentJob.wt << std::endl;
+            avgWaitingTime += currentJob.wt;
+            }
+        }
+        
+
+    }
+        std::cout << "\n\nRuntime Statistics: ";
+        std::cout << "\n\n\tAverage Turnaround time: " << avgTurnaroundTime / numOfJobs;
+        std::cout << "\n\n\tAverage Waiting Time: " << avgWaitingTime / numOfJobs;
    }
-
-}
 
 void ProcessManager::DEBUGPrintJobs()
 {
